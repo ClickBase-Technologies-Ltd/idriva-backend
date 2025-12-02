@@ -98,7 +98,6 @@ Route::get('/user', function () {
 Route::get('profile/biodata', [UsersController::class, 'userBiodataProfile']);
 Route::post('profile/upload-image', [UsersController::class, 'uploadProfileImage']);
 
-    
 Route::get('applications', [RecruitmentJobApplicationsController::class, 'index']);
 Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsController::class, 'updateApplicationStatus']);
 
