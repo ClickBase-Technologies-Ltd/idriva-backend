@@ -229,4 +229,75 @@ public function createUser(Request $request)
             return response()->json(['message' => 'User deleted successfully']);
         }, 5);
     }
+
+    public function userBiodataProfile(Request $request)
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
+
+        return response()->json([
+            'firstName' => $user->firstName,
+            'lastName' => $user->lastName,
+            'otherNames' => $user->otherNames,
+            'email' => $user->email,
+            'phoneNumber' => $user->phoneNumber,
+            'role' => $user->user_role->roleName ?? null,
+            'profileImage' => $user->profileImage ?? null,
+            'created_at' => $user->created_at,
+       
+        ]);
+    }
+
+
+    public function userEducationProfile(Request $request)
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
+
+        $education = Education::where('userId', $user->id)->first(); // Assuming a 'education' relationship exists
+        return response()->json([
+            'firstName' => $user->firstName,
+            'lastName' => $user->lastName,
+            'otherNames' => $user->otherNames,
+            'email' => $user->email,
+            'phoneNumber' => $user->phoneNumber,
+            'role' => $user->user_role->roleName ?? null,
+       
+        ]);
+    }
+
+
+    public function uploadProfileImage(Request $request)
+    {
+        $request->validate([
+            'profileImage' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // max 2MB
+        ]);
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
+
+        // Handle file upload
+        if ($request->hasFile('profileImage')) {
+            $image = $request->file('profileImage');
+            $imageName = time() . '_' . $user->id . '.' . $image->getClientOriginalExtension();
+            $image->move(public_path('profile-images'), $imageName);
+
+            // Update user's profile image path
+            $user->profileImage = 'profile-images/' . $imageName;
+            $user->save();
+
+            return response()->json(['message' => 'Profile image uploaded successfully', 'profileImage' => $user->profileImage]);
+        }
+
+        return response()->json(['message' => 'No image uploaded'], 400);
+    }
 }

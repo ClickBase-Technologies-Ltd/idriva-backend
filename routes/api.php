@@ -68,6 +68,8 @@ Route::get('/user', function () {
             'id' => (string) $user->id,
             'full_name' => trim($user->firstName . ' ' . $user->lastName),
             'role' => $user->user_role->roleName ?? null,
+            'phoneNumber' => $user->phoneNumber,
+            'email' => $user->email,
         ],
         'profile' => [
             'profile_picture' => '/avatar.png', // Replace with $user->profile_picture if exists
@@ -93,6 +95,8 @@ Route::get('/user', function () {
     ]);
 });
 
+Route::get('profile/biodata', [UsersController::class, 'userBiodataProfile']);
+Route::post('profile/upload-image', [UsersController::class, 'uploadProfileImage']);
 
 Route::post('posts', [PostController::class, 'store']);
 Route::get('posts', [PostController::class, 'index']);
@@ -125,4 +129,7 @@ Route::delete('jobs/{id}', [JobController::class, 'destroy']);
 Route::get('my-jobs', [JobController::class, 'myJobs']);
 Route::post('jobs/{id}/apply', [RecruitmentJobApplicationsController::class, 'store']);
 Route::get('jobs/{id}/application-status', [RecruitmentJobApplicationsController::class, 'checkApplicationStatus']);
+
+Route::get('applications', [RecruitmentJobApplicationsController::class, 'index']);
+Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsController::class, 'updateApplicationStatus']);
 });
