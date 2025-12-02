@@ -10,8 +10,6 @@ class Lesson extends Model
 {
     use HasFactory;
 
-    protected $table = 'lessons';
-
     protected $fillable = [
         'module_id',
         'title',
@@ -28,9 +26,6 @@ class Lesson extends Model
         'duration_seconds' => 'integer',
     ];
 
-    /**
-     * The module this lesson belongs to.
-     */
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
