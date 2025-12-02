@@ -96,6 +96,10 @@ Route::get('/user', function () {
 });
 
 Route::get('profile/biodata', [UsersController::class, 'userBiodataProfile']);
+Route::get('profile/education', [UsersController::class, 'userEducationProfile']);
+Route::get('profile/experience', [UsersController::class, 'userExperienceProfile']);
+Route::get('profile/skills', [UsersController::class, 'userSkillsProfile']);
+
 Route::post('profile/upload-image', [UsersController::class, 'uploadProfileImage']);
 
 Route::get('applications', [RecruitmentJobApplicationsController::class, 'index']);

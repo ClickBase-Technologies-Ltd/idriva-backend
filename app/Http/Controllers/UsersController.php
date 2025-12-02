@@ -16,6 +16,11 @@ use Illuminate\Http\JsonResponse;
 use App\Models\Lgas;
 use App\Models\StateCoordinators;
 use App\Models\CommunityLead;
+use App\Models\Education;
+use App\Models\Skills;
+use App\Models\WorkExperience;
+use Illuminate\Queue\Worker;
+
 class UsersController extends Controller
 {
     // public function index()
@@ -252,25 +257,117 @@ public function createUser(Request $request)
     }
 
 
-    public function userEducationProfile(Request $request)
-    {
-        $user = auth()->user();
+   public function userEducationProfile(Request $request)
+{
+    $user = auth()->user();
 
-        if (!$user) {
-            return response()->json(['message' => 'User not authenticated'], 401);
-        }
-
-        $education = Education::where('userId', $user->id)->first(); // Assuming a 'education' relationship exists
+    if (!$user) {
         return response()->json([
-            'firstName' => $user->firstName,
-            'lastName' => $user->lastName,
-            'otherNames' => $user->otherNames,
-            'email' => $user->email,
-            'phoneNumber' => $user->phoneNumber,
-            'role' => $user->user_role->roleName ?? null,
-       
-        ]);
+            'message' => 'User not authenticated'
+        ], 401);
     }
+
+    $education = Education::where('userId', $user->id)->first();
+
+    // If no education record exists, return a safe empty structure
+    if (!$education) {
+        return response()->json([
+            'educationId' => null,
+            'userId' => $user->id,
+            'institutionName' => null,
+            'degree' => null,
+            'fieldOfStudy' => null,
+            'startDate' => null,
+            'endDate' => null,
+            'description' => null,
+            'message' => 'No education record found'
+        ], 200);
+    }
+
+    // If education exists, return actual data
+    return response()->json([
+        'educationId' => $education->educationId,
+        'userId' => $education->userId,
+        'institutionName' => $education->institutionName,
+        'degree' => $education->degree,
+        'fieldOfStudy' => $education->fieldOfStudy,
+        'startDate' => $education->startDate,
+        'endDate' => $education->endDate,
+        'description' => $education->description,
+    ], 200);
+}
+
+
+    public function userExperienceProfile(Request $request)
+{
+    $user = auth()->user();
+
+    if (!$user) {
+        return response()->json([
+            'message' => 'User not authenticated'
+        ], 401);
+    }
+
+    $workExperience = WorkExperience::where('userId', $user->id)->first();
+
+    // If no experience found, return safe empty structure
+    if (!$workExperience) {
+        return response()->json([
+            'experienceId' => null,
+            'userId' => $user->id,
+            'companyName' => null,
+            'position' => null,
+            'location' => null,
+            'startDate' => null,
+            'endDate' => null,
+            'description' => null,
+            'message' => 'No work experience found'
+        ], 200);
+    }
+
+    // If found, return the actual fields
+    return response()->json([
+        'experienceId' => $workExperience->experienceId,
+        'userId' => $workExperience->userId,
+        'companyName' => $workExperience->companyName,
+        'position' => $workExperience->position,
+        'location' => $workExperience->location,
+        'startDate' => $workExperience->startDate,
+        'endDate' => $workExperience->endDate,
+        'description' => $workExperience->description,
+    ], 200);
+}
+
+
+
+    public function userSkillsProfile(Request $request)
+{
+    $user = auth()->user();
+
+    if (!$user) {
+        return response()->json([
+            'message' => 'User not authenticated'
+        ], 401);
+    }
+
+    $skills = Skills::where('userId', $user->id)->first();
+
+    // If no skills record exists, return a safe empty response
+    if (!$skills) {
+        return response()->json([
+            'skillName' => null,
+            'userId' => $user->id,
+            'skillLevel' => null,
+            'message' => 'No skills record found'
+        ], 200);
+    }
+
+    return response()->json([
+        'skillName' => $skills->skillName,
+        'userId' => $skills->userId,
+        'skillLevel' => $skills->skillLevel,
+    ], 200);
+}
 
 
     public function uploadProfileImage(Request $request)
