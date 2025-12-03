@@ -61,7 +61,7 @@ Route::post('stripe/webhook', [StripeWebhookController::class, 'handle']);
 // --------------------
 // Public Learning routes
 // --------------------
-Route::get('learning', [LearningController::class, 'index']); // List all courses
+Route::get('learning', [LearningController::class, 'index']); // List all courses with modules count & instructor info
 Route::get('learning/{id}', [LearningController::class, 'show']); // Single course with modules & lessons
 
 // --------------------
@@ -146,9 +146,9 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::post('jobs/{id}/apply', [RecruitmentJobApplicationsController::class, 'store']);
     Route::get('jobs/{id}/application-status', [RecruitmentJobApplicationsController::class, 'checkApplicationStatus']);
 
-    // Authenticated Learning actions
-    Route::post('learning/{id}/checkout', [LearningController::class, 'createCheckoutSession']);
-    Route::post('learning/{id}/enroll', [LearningController::class, 'enroll']); // <-- fixed
+    // Authenticated Learning actions with Paystack
+    Route::post('learning/{id}/checkout', [LearningController::class, 'createCheckoutSession']); // Paystack
+    Route::post('learning/{id}/enroll', [LearningController::class, 'enroll']); // Enroll course
 
     // Instructor API
     Route::get('instructor/courses', [InstructorCourseController::class, 'index']);

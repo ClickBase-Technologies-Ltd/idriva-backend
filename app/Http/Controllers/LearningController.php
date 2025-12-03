@@ -7,18 +7,18 @@ use Illuminate\Http\JsonResponse;
 use App\Models\Course;
 use App\Models\Enrollment;
 use Illuminate\Support\Facades\Auth;
-use Stripe\Stripe;
-use Stripe\Checkout\Session;
+use Illuminate\Support\Facades\Http;
 
 class LearningController extends Controller
 {
     /**
      * GET /learning
-     * Return all published courses with instructor info.
+     * Return all published courses with instructor info and modules count.
      */
     public function index(): JsonResponse
     {
         $courses = Course::with('instructor')
+            ->withCount('modules')
             ->where('published', 1)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -44,7 +44,7 @@ class LearningController extends Controller
             return $module;
         });
 
-        // Check if authenticated user is enrolled in this course
+        // Check if authenticated user is enrolled
         $user = Auth::user();
         $course->enrolled = $user
             ? $user->enrolledCourses()->where('course_id', $id)->exists()
@@ -55,43 +55,50 @@ class LearningController extends Controller
 
     /**
      * POST /learning/{id}/checkout
-     * Create Stripe checkout session for course purchase.
+     * Create Paystack payment session for course purchase (NGN).
      */
     public function createCheckoutSession(Request $request, $id): JsonResponse
     {
         $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $course = Course::findOrFail($id);
+        if (!$course->price || $course->price <= 0) {
+            return response()->json(['message' => 'Course is free. No payment needed.']);
+        }
 
-        Stripe::setApiKey(config('services.stripe.secret') ?? env('STRIPE_SECRET_KEY'));
+        $paystackSecret = env('PAYSTACK_SECRET_KEY');
+        $callbackUrl = env('APP_URL') . "/dashboard/learning/{$id}/payment-callback";
 
-        $session = Session::create([
-            'payment_method_types' => ['card'],
-            'mode' => 'payment',
-            'customer_email' => $user->email ?? null,
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => 'usd',
-                    'product_data' => [
-                        'name' => $course->title,
-                    ],
-                    'unit_amount' => intval(($course->price ?? 0) * 100),
+        $response = Http::withToken($paystackSecret)
+            ->post('https://api.paystack.co/transaction/initialize', [
+                'email' => $user->email,
+                'amount' => intval($course->price * 100), // Naira to kobo
+                'currency' => 'NGN',
+                'callback_url' => $callbackUrl,
+                'metadata' => [
+                    'course_id' => $id,
+                    'user_id' => $user->id,
+                    'course_title' => $course->title,
                 ],
-                'quantity' => 1,
-            ]],
-            'success_url' => env('APP_URL') . "/dashboard/learning/{$id}?session_id={CHECKOUT_SESSION_ID}",
-            'cancel_url' => env('APP_URL') . "/dashboard/learning/{$id}",
-            'metadata' => [
-                'course_id' => $id,
-                'user_id' => $user->id ?? null,
-            ],
-        ]);
+            ]);
 
-        return response()->json(['url' => $session->url]);
+        if ($response->successful()) {
+            $data = $response->json();
+            return response()->json(['authorization_url' => $data['data']['authorization_url']]);
+        }
+
+        return response()->json([
+            'message' => 'Failed to initiate payment. Try again later.',
+            'error' => $response->body()
+        ], 500);
     }
 
     /**
      * POST /learning/{id}/enroll
-     * Enroll the authenticated user in a course (free enrollment).
+     * Enroll the authenticated user in a course (free enrollment or after payment).
      */
     public function enroll(Request $request, $id): JsonResponse
     {
@@ -117,7 +124,7 @@ class LearningController extends Controller
             'course_id' => $course->id,
             'status' => 'enrolled',
             'started_at' => now(),
-            'payment_reference' => null,
+            'payment_reference' => $request->input('payment_reference') ?? null,
         ]);
 
         return response()->json(['enrolled' => true, 'message' => 'Enrollment successful']);

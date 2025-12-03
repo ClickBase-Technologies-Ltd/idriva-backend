@@ -26,6 +26,9 @@ class Lesson extends Model
         'duration_seconds' => 'integer',
     ];
 
+    /**
+     * The module this lesson belongs to
+     */
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
