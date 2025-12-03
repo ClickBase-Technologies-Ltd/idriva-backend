@@ -8,7 +8,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
-
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -41,7 +40,6 @@ class User extends Authenticatable implements JWTSubject
      *
      * @var list<string>
      */
- 
     protected $hidden = [
         'otp_code',
         'password',
@@ -66,20 +64,35 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
-
+    /**
+     * JWT Identifier
+     */
     public function getJWTIdentifier()
     {
         return $this->getKey();
     }
 
+    /**
+     * JWT Custom Claims
+     */
     public function getJWTCustomClaims()
     {
         return [];
     }
 
-
-        public function user_role()
+    /**
+     * User role relationship
+     */
+    public function user_role()
     {
         return $this->belongsTo(Role::class, 'role', 'roleId'); 
+    }
+
+    /**
+     * Courses the user is enrolled in
+     */
+    public function enrolledCourses()
+    {
+        return $this->hasMany(Enrollment::class, 'user_id');
     }
 }

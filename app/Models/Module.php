@@ -35,6 +35,7 @@ class Module extends Model
      */
     public function lessons(): HasMany
     {
-        return $this->hasMany(Lesson::class)->orderBy('position');
+        // ✅ Use a query scope for ordering instead of chaining orderBy directly
+        return $this->hasMany(Lesson::class)->orderBy('position', 'asc');
     }
 }

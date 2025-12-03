@@ -11,47 +11,33 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
 /**
+ * Combined controllers file containing:
+ * - LearningController (handles courses, checkout, enrollment, payment verification)
+ * - LessonController (handles fetching a single lesson by course + lesson id)
+ */
+
+/**
  * LearningController
  */
 class LearningController extends Controller
 {
-    /**
-     * GET /learning
-     * List all published courses with enrollment info for the logged-in user.
-     */
     public function index(): JsonResponse
     {
-        $user = Auth::user();
-
         $courses = Course::with('instructor')
             ->withCount('modules')
             ->where('published', 1)
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($course) use ($user) {
-                // Only consider active or completed enrollments
-                $course->enrolled = $user
-                    ? $user->enrolledCourses()
-                           ->where('course_id', $course->id)
-                           ->whereIn('status', ['active', 'completed'])
-                           ->exists()
-                    : false;
-                return $course;
-            });
+            ->get();
 
         return response()->json($courses);
     }
 
-    /**
-     * GET /learning/{id}
-     * Fetch single course with modules, lessons, and enrollment info.
-     */
     public function show($id): JsonResponse
     {
         try {
             $course = Course::with([
-                'modules' => fn($q) => $q->orderBy('position', 'asc'),
                 'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
+                'modules' => fn($q) => $q->orderBy('position', 'asc'),
                 'instructor'
             ])->findOrFail($id);
 
@@ -61,12 +47,7 @@ class LearningController extends Controller
             );
 
             $user = Auth::user();
-            $course->enrolled = $user
-                ? $user->enrolledCourses()
-                       ->where('course_id', $id)
-                       ->whereIn('status', ['active', 'completed'])
-                       ->exists()
-                : false;
+            $course->enrolled = $user ? $user->enrolledCourses()->where('course_id', $id)->exists() : false;
 
             return response()->json($course);
         } catch (\Throwable $e) {
@@ -83,10 +64,6 @@ class LearningController extends Controller
         }
     }
 
-    /**
-     * POST /learning/{id}/checkout
-     * Initialize payment for a paid course.
-     */
     public function createCheckoutSession(Request $request, $id): JsonResponse
     {
         $user = Auth::user();
@@ -138,10 +115,6 @@ class LearningController extends Controller
         }
     }
 
-    /**
-     * POST /learning/{id}/enroll
-     * Enroll the authenticated user in a free course.
-     */
     public function enroll(Request $request, $id): JsonResponse
     {
         $user = Auth::user();
@@ -149,13 +122,7 @@ class LearningController extends Controller
 
         $course = Course::findOrFail($id);
 
-        // Only consider active or completed enrollments
-        $alreadyEnrolled = $user->enrolledCourses()
-            ->where('course_id', $course->id)
-            ->whereIn('status', ['active', 'completed'])
-            ->exists();
-
-        if ($alreadyEnrolled) {
+        if ($user->enrolledCourses()->where('course_id', $course->id)->exists()) {
             return response()->json(['enrolled' => true, 'message' => 'Already enrolled']);
         }
 
@@ -175,10 +142,6 @@ class LearningController extends Controller
         ]);
     }
 
-    /**
-     * GET /learning/{id}/payment-verify
-     * Verify Paystack payment and enroll user if successful.
-     */
     public function verifyPaymentApi(Request $request, $id): JsonResponse
     {
         $reference = $request->query('reference') ?? $request->query('trxref');
@@ -211,18 +174,11 @@ class LearningController extends Controller
                     'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
                 ])->findOrFail($courseId);
 
-                // Only enroll if not already active/completed
-                $alreadyEnrolled = $user->enrolledCourses()
-                    ->where('course_id', $course->id)
-                    ->whereIn('status', ['active', 'completed'])
-                    ->exists();
-
-                if (!$alreadyEnrolled) {
+                if (!$user->enrolledCourses()->where('course_id', $course->id)->exists()) {
                     $user->enrolledCourses()->create([
                         'course_id' => $course->id,
                         'status' => 'active',
                         'started_at' => now(),
-                        'payment_reference' => $reference,
                     ]);
                 }
 
@@ -260,3 +216,71 @@ class LearningController extends Controller
     }
 }
 
+/**
+ * LessonController
+ */
+class LessonController extends Controller
+{
+    /**
+     * Show a lesson by course and lesson ID.
+     *
+     * GET /api/learning/{course}/lessons/{lesson}
+     */
+    public function show($courseId, $lessonId): JsonResponse
+    {
+        \Log::info('LessonController::show called', ['courseId' => $courseId, 'lessonId' => $lessonId]);
+
+        try {
+            // Load lesson with module relationship
+            $lesson = Lesson::with(['module:id,course_id'])->find($lessonId);
+
+            if (!$lesson) {
+                \Log::warning('Lesson not found', ['lessonId' => $lessonId]);
+                return response()->json(['message' => 'Lesson not found.'], 404);
+            }
+
+            if (!$lesson->module) {
+                \Log::warning('Lesson has no module', ['lessonId' => $lessonId]);
+                return response()->json(['message' => 'Lesson is not assigned to any module.'], 404);
+            }
+
+            if ((int)$lesson->module->course_id !== (int)$courseId) {
+                \Log::warning('Lesson does not belong to course', [
+                    'lessonId' => $lessonId,
+                    'moduleCourseId' => $lesson->module->course_id,
+                    'requestedCourseId' => $courseId
+                ]);
+                return response()->json(['message' => 'Lesson not found for this course.'], 404);
+            }
+
+            \Log::info('Lesson fetched successfully', ['lessonId' => $lessonId]);
+
+            return response()->json([
+                'id' => $lesson->id,
+                'title' => $lesson->title,
+                'content' => $lesson->content,
+                'content_type' => $lesson->content_type,
+                'content_url' => $lesson->content_url,
+                'position' => $lesson->position,
+                'duration_seconds' => $lesson->duration_seconds,
+                'module_id' => $lesson->module_id,
+                'course_id' => $lesson->module->course_id,
+                'created_at' => $lesson->created_at,
+                'updated_at' => $lesson->updated_at,
+            ]);
+
+        } catch (\Throwable $e) {
+            \Log::error('LessonController::show exception', [
+                'courseId' => $courseId,
+                'lessonId' => $lessonId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'SERVER ERROR',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+}

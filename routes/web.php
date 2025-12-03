@@ -1,15 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\LearningController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
+| Here is where you can register web routes for your application.
 |
 */
 
@@ -17,45 +16,49 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-
+// Serve files
 Route::get('/posts/{filename}', function ($filename) {
     $path = storage_path('app/public/posts/' . $filename);
-    if (!file_exists($path)) {
-        abort(404);
-    }
+    if (!file_exists($path)) abort(404);
     return response()->file($path);
 });
-
 
 Route::get('/company-logos/{filename}', function ($filename) {
     $path = storage_path('app/public/company-logos/' . $filename);
-    if (!file_exists($path)) {
-        abort(404);
-    }
+    if (!file_exists($path)) abort(404);
     return response()->file($path);
 });
 
-
 Route::get('/job-images/{filename}', function ($filename) {
     $path = storage_path('app/public/job-images/' . $filename);
-    if (!file_exists($path)) {
-        abort(404);
-    }
+    if (!file_exists($path)) abort(404);
     return response()->file($path);
 });
 
 Route::get('/profile-images/{filename}', function ($filename) {
     $path = storage_path('app/public/profile-images/' . $filename);
-    if (!file_exists($path)) {
-        abort(404);
-    }
+    if (!file_exists($path)) abort(404);
     return response()->file($path);
 });
 
+/*
+|--------------------------------------------------------------------------
+| Learning Routes
+|--------------------------------------------------------------------------
+|
+| Handles course listing, course details, checkout, enrollment, and
+| payment verification.
+|
+*/
+Route::prefix('learning')->group(function () {
+    Route::get('/', [LearningController::class, 'index']);                   // List courses
+    Route::get('/{id}', [LearningController::class, 'show']);                // Course details
+    Route::post('/{id}/checkout', [LearningController::class, 'createCheckoutSession']); // Start payment
+    Route::post('/{id}/enroll', [LearningController::class, 'enroll']);      // Free enrollment
 
+    // User-facing success page (Blade view)
+    Route::get('/{id}/payment-verify', [LearningController::class, 'verifyPaymentPage']);
 
-
-
-
-
-
+    // API endpoint for frontend fetch (JSON)
+    Route::get('/api/{id}/payment-verify', [LearningController::class, 'verifyPaymentApi']);
+});

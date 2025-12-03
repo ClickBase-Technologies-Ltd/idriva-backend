@@ -30,6 +30,7 @@ use App\Http\Controllers\OtpController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\RecruitmentJobApplicationsController;
 use App\Http\Controllers\LearningController;
+use App\Http\Controllers\LessonController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\InstructorCourseController;
 use App\Http\Controllers\InstructorModuleController;
@@ -61,8 +62,11 @@ Route::post('stripe/webhook', [StripeWebhookController::class, 'handle']);
 // --------------------
 // Public Learning routes
 // --------------------
-Route::get('learning', [LearningController::class, 'index']); // List all courses with modules count & instructor info
-Route::get('learning/{id}', [LearningController::class, 'show']); // Single course with modules & lessons
+Route::get('learning', [LearningController::class, 'index']); // List all courses
+Route::get('learning/{id}', [LearningController::class, 'show']); // Single course
+
+// Public endpoint to fetch a lesson (must be public so frontend can load lessons without auth)
+Route::get('learning/{course}/lessons/{lesson}', [LessonController::class, 'show']);
 
 // --------------------
 // Authenticated routes
@@ -147,8 +151,13 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::get('jobs/{id}/application-status', [RecruitmentJobApplicationsController::class, 'checkApplicationStatus']);
 
     // Authenticated Learning actions with Paystack
-    Route::post('learning/{id}/checkout', [LearningController::class, 'createCheckoutSession']); // Paystack
-    Route::post('learning/{id}/enroll', [LearningController::class, 'enroll']); // Enroll course
+    Route::post('learning/{id}/checkout', [LearningController::class, 'createCheckoutSession']);
+    Route::post('learning/{id}/enroll', [LearningController::class, 'enroll']);
+
+    // Payment verification can be authenticated or public depending on your flow.
+    // If your frontend calls the verify endpoint without auth (e.g., Paystack callback),
+    // consider making it public. If you want it protected, keep it here.
+    Route::get('learning/{id}/payment-verify', [LearningController::class, 'verifyPaymentApi']);
 
     // Instructor API
     Route::get('instructor/courses', [InstructorCourseController::class, 'index']);
