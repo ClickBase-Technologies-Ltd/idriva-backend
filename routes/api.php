@@ -63,63 +63,62 @@ Route::get('/roles', [RolesController::class, 'index']);
 Route::post('stripe/webhook', [StripeWebhookController::class, 'handle']);
 
 Route::middleware(['auth.jwt'])->group(function () {
-Route::get('/user', function () {
-    $user = auth()->user(); // Use the 'api' guard for JWT
 
-    return response()->json([
-        'user' => [
-            'id' => (string) $user->id,
-            'full_name' => trim($user->firstName . ' ' . $user->lastName . ' ' . ($user->otherNames ?? '')),
-            'role' => $user->user_role->roleName ?? null,
-            'phoneNumber' => $user->phoneNumber,
-            'email' => $user->email,
-        ],
-        'profile' => [
-            'profileImage' => $user->profileImage ?? '/avatar.png', // Replace with $user->profile_picture if exists
-            'coverImage' => $user->coverImage ?? '/cover_photo.jpg',   // Replace with $user->cover_photo if exists
-        ],
-        'followersCount' => 42, // Replace with actual count from DB
-        'followingCount' => 128, // Replace with actual count from DB
-        'suggestedUsers' => [
-            [
-                'id' => '2',
-                'full_name' => 'Jane Smith',
-                'profile_picture' => '/avatar.png',
-                'is_following' => false,
+    Route::get('/user', function () {
+        $user = auth()->user(); // Use the 'api' guard for JWT
+
+        return response()->json([
+            'user' => [
+                'id' => (string) $user->id,
+                'full_name' => trim($user->firstName . ' ' . $user->lastName . ' ' . ($user->otherNames ?? '')),
+                'role' => $user->user_role->roleName ?? null,
+                'phoneNumber' => $user->phoneNumber,
+                'email' => $user->email,
             ],
-            // 'profile' => [
-            //     'profile_picture' => '/avatar.png',
-            //     'cover_photo' => '/cover_photo.jpg',
-            // ],
-        ],
-        'unreadCount' => 3, // Replace with actual unread notifications count
-    ]);
-});
+            'profile' => [
+                'profileImage' => $user->profileImage ?? '/avatar.png',
+                'coverImage' => $user->coverImage ?? '/cover_photo.jpg',
+            ],
+            'followersCount' => 42,
+            'followingCount' => 128,
+            'suggestedUsers' => [
+                [
+                    'id' => '2',
+                    'full_name' => 'Jane Smith',
+                    'profile_picture' => '/avatar.png',
+                    'is_following' => false,
+                ],
+            ],
+            'unreadCount' => 3,
+        ]);
+    });
 
-Route::get('profile/biodata', [UsersController::class, 'userBiodataProfile']);
-Route::get('profile/education', [UsersController::class, 'userEducationProfile']);
-Route::get('profile/experience', [UsersController::class, 'userExperienceProfile']);
-Route::get('profile/skills', [UsersController::class, 'userSkillsProfile']);
-Route::get('profile/drivers-license', [UsersController::class, 'userDriversLicenseProfile']);
+    // User profile routes
+    Route::get('profile/biodata', [UsersController::class, 'userBiodataProfile']);
+    Route::get('profile/education', [UsersController::class, 'userEducationProfile']);
+    Route::get('profile/experience', [UsersController::class, 'userExperienceProfile']);
+    Route::get('profile/skills', [UsersController::class, 'userSkillsProfile']);
+    Route::get('profile/drivers-license', [UsersController::class, 'userDriversLicenseProfile']);
 
+    Route::post('profile/biodata', [UsersController::class, 'storeUserBiodata']);
+    Route::post('profile/education', [UsersController::class, 'storeUserEducation']);
+    Route::post('profile/experience', [UsersController::class, 'storeUserExperience']);
+    Route::post('profile/skills', [UsersController::class, 'storeUserSkills']);
+    Route::post('profile/drivers-license', [UsersController::class, 'storeUserDriversLicense']);
 
-Route::post('profile/biodata', [UsersController::class, 'storeUserBiodata']);
-Route::post('profile/education', [UsersController::class, 'storeUserEducation']);
-Route::post('profile/experience', [UsersController::class, 'storeUserExperience']);
-Route::post('profile/skills', [UsersController::class, 'storeUserSkills']);
-Route::post('profile/drivers-license', [UsersController::class, 'storeUserDriversLicense']);
+    Route::delete('profile/education/{id}', [UsersController::class, 'deleteUserEducation']);
+    Route::delete('profile/experience/{id}', [UsersController::class, 'deleteUserExperience']);
+    Route::delete('profile/skills/{id}', [UsersController::class, 'deleteUserSkills']);
+    Route::delete('profile/drivers-license/{id}', [UsersController::class, 'deleteUserDriversLicense']);
 
-Route::delete('profile/education/{id}', [UsersController::class, 'deleteUserEducation']);
-Route::delete('profile/experience/{id}', [UsersController::class, 'deleteUserExperience']);
-Route::delete('profile/skills/{id}', [UsersController::class, 'deleteUserSkills']);
-Route::delete('profile/drivers-license/{id}', [UsersController::class, 'deleteUserDriversLicense']);
+    Route::post('profile/upload-image', [UsersController::class, 'uploadProfileImage']);
+    Route::post('profile/upload-cover-image', [UsersController::class, 'uploadCoverImage']);
 
-Route::post('profile/upload-image', [UsersController::class, 'uploadProfileImage']);
-Route::post('profile/upload-cover-image', [UsersController::class, 'uploadCoverImage']);
+    // Applications
+    Route::get('applications', [RecruitmentJobApplicationsController::class, 'index']);
+    Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsController::class, 'updateApplicationStatus']);
 
-Route::get('applications', [RecruitmentJobApplicationsController::class, 'index']);
-Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsController::class, 'updateApplicationStatus']);
-
+    // Posts
     Route::post('posts', [PostController::class, 'store']);
     Route::get('posts', [PostController::class, 'index']);
     Route::get('posts/{id}', [PostController::class, 'show']);
@@ -131,11 +130,11 @@ Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsContr
     Route::post('posts/{id}/unshare', [PostController::class, 'unsharePost']);
     Route::post('posts/{id}/comment', [PostController::class, 'commentPost']);
     Route::post('posts/{id}/uncomment', [PostController::class, 'uncommentPost']);
-
     Route::get('posts/{id}/comments', [PostController::class, 'getComments']);
     Route::get('posts/{id}/likes', [PostController::class, 'getLikes']);
     Route::get('posts/{id}/shares', [PostController::class, 'getShares']);
 
+    // Companies
     Route::get('companies', [CompanyController::class, 'index']);
     Route::post('companies', [CompanyController::class, 'store']);
     Route::get('companies/{id}', [CompanyController::class, 'show']);
@@ -143,6 +142,7 @@ Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsContr
     Route::delete('companies/{id}', [CompanyController::class, 'destroy']);
     Route::get('my-companies', [CompanyController::class, 'myCompanies']);
 
+    // Jobs
     Route::post('jobs', [JobController::class, 'store']);
     Route::get('jobs', [JobController::class, 'index']);
     Route::get('jobs/{id}', [JobController::class, 'show']);
@@ -152,16 +152,18 @@ Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsContr
     Route::post('jobs/{id}/apply', [RecruitmentJobApplicationsController::class, 'store']);
     Route::get('jobs/{id}/application-status', [RecruitmentJobApplicationsController::class, 'checkApplicationStatus']);
     Route::get('jobs/{id}/applications', [RecruitmentJobApplicationsController::class, 'getJobApplications']);
-    
+
     // Learning endpoints (authenticated)
     Route::get('learning', [LearningController::class, 'index']);
     Route::get('learning/{id}', [LearningController::class, 'show']);
     Route::post('learning/{id}/checkout', [LearningController::class, 'createCheckoutSession']);
 
+    // **Added payment verification route**
+    Route::get('learning/{id}/payment-verify', [LearningController::class, 'paymentVerify']);
+
     // Instructor API - courses / modules / lessons
     Route::get('instructor/courses', [InstructorCourseController::class, 'index']);
     Route::post('instructor/courses', [InstructorCourseController::class, 'store']);
-    // added: single course routes and update/delete to support frontend PUT/PATCH/DELETE
     Route::get('instructor/courses/{id}', [InstructorCourseController::class, 'show']);
     Route::put('instructor/courses/{id}', [InstructorCourseController::class, 'update']);
     Route::patch('instructor/courses/{id}', [InstructorCourseController::class, 'update']);
@@ -169,13 +171,14 @@ Route::put('applications/{applicantId}/status', [RecruitmentJobApplicationsContr
 
     Route::get('instructor/modules', [InstructorModuleController::class, 'index']);
     Route::post('instructor/modules', [InstructorModuleController::class, 'store']);
-    // (optionally add module update/delete routes if needed)
 
-    // Lessons: list, create, show, update, delete
     Route::get('instructor/lessons', [InstructorLessonController::class, 'index']);
     Route::post('instructor/lessons', [InstructorLessonController::class, 'store']);
     Route::get('instructor/lessons/{id}', [InstructorLessonController::class, 'show']);
     Route::put('instructor/lessons/{id}', [InstructorLessonController::class, 'update']);
     Route::patch('instructor/lessons/{id}', [InstructorLessonController::class, 'update']);
     Route::delete('instructor/lessons/{id}', [InstructorLessonController::class, 'destroy']);
+
+    // Fetch a single lesson for a course
+    Route::get('learning/{courseId}/lessons/{lessonId}', [LessonController::class, 'show']);
 });

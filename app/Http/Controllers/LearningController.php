@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Course;
 use App\Models\User;
-use App\Models\Lesson;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
@@ -29,7 +28,6 @@ class LearningController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($course) use ($user) {
-                // Only consider active or completed enrollments
                 $course->enrolled = $user
                     ? $user->enrolledCourses()
                            ->where('course_id', $course->id)
@@ -55,7 +53,6 @@ class LearningController extends Controller
                 'instructor'
             ])->findOrFail($id);
 
-            // Ensure lessons is always a collection
             $course->modules = $course->modules->map(
                 fn($module) => tap($module, fn($m) => $m->lessons = $m->lessons ?? collect([]))
             );
@@ -149,7 +146,6 @@ class LearningController extends Controller
 
         $course = Course::findOrFail($id);
 
-        // Only consider active or completed enrollments
         $alreadyEnrolled = $user->enrolledCourses()
             ->where('course_id', $course->id)
             ->whereIn('status', ['active', 'completed'])
@@ -179,7 +175,7 @@ class LearningController extends Controller
      * GET /learning/{id}/payment-verify
      * Verify Paystack payment and enroll user if successful.
      */
-    public function verifyPaymentApi(Request $request, $id): JsonResponse
+    public function paymentVerify(Request $request, $id): JsonResponse
     {
         $reference = $request->query('reference') ?? $request->query('trxref');
 
@@ -189,7 +185,8 @@ class LearningController extends Controller
         if (!$paystackSecret) return response()->json(['enrolled' => false, 'message' => 'Payment gateway not configured.'], 500);
 
         try {
-            $response = Http::withToken($paystackSecret)->get("https://api.paystack.co/transaction/verify/{$reference}");
+            $response = Http::withToken($paystackSecret)
+                ->get("https://api.paystack.co/transaction/verify/{$reference}");
 
             if (!$response->successful()) {
                 return response()->json(['enrolled' => false, 'message' => 'Payment verification failed.'], 500);
@@ -211,7 +208,6 @@ class LearningController extends Controller
                     'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
                 ])->findOrFail($courseId);
 
-                // Only enroll if not already active/completed
                 $alreadyEnrolled = $user->enrolledCourses()
                     ->where('course_id', $course->id)
                     ->whereIn('status', ['active', 'completed'])
@@ -245,7 +241,7 @@ class LearningController extends Controller
             return response()->json(['enrolled' => false, 'message' => 'Payment was not successful.'], 400);
 
         } catch (\Throwable $e) {
-            \Log::error('LearningController::verifyPaymentApi error', [
+            \Log::error('LearningController::paymentVerify error', [
                 'courseId' => $id,
                 'reference' => $reference,
                 'error' => $e->getMessage(),
@@ -259,4 +255,3 @@ class LearningController extends Controller
         }
     }
 }
-
