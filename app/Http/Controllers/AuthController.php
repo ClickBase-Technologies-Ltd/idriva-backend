@@ -99,9 +99,11 @@ public function signin(Request $request)
         'email' => $user->email ?? '',
         'phoneNumber' => $user->phoneNumber ?? '',
         'role' => $user->user_role->roleName ?? '',
+        'profileImage' => $user->profileImage ?? '/avatar.png',
+        'coverImage' => $user->coverImage ?? '/cover_photo.jpg',
        
-        'id' => $user->id ?? '',
-        'access_token' => $accessToken,
+        // 'id' => $user->id ?? '',
+        // 'access_token' => $accessToken,
     ])
         ->cookie('access_token', $accessToken, 60, null, null, true, true, false, 'strict')
         ->cookie('refresh_token', $refreshToken, 14 * 24 * 60, null, null, true, true, false, 'strict');

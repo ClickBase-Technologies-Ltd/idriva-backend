@@ -41,6 +41,13 @@ Route::get('/profile-images/{filename}', function ($filename) {
     return response()->file($path);
 });
 
+Route::get('/cover-images/{filename}', function ($filename) {
+    $path = storage_path('app/public/cover-images/' . $filename);
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    return response()->file($path);
+});
 /*
 |--------------------------------------------------------------------------
 | Learning Routes
@@ -56,8 +63,10 @@ Route::prefix('learning')->group(function () {
     Route::post('/{id}/checkout', [LearningController::class, 'createCheckoutSession']); // Start payment
     Route::post('/{id}/enroll', [LearningController::class, 'enroll']);      // Free enrollment
 
+    
     // User-facing success page (Blade view)
     Route::get('/{id}/payment-verify', [LearningController::class, 'verifyPaymentPage']);
+
 
     // API endpoint for frontend fetch (JSON)
     Route::get('/api/{id}/payment-verify', [LearningController::class, 'verifyPaymentApi']);

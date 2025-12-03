@@ -32,7 +32,10 @@ class User extends Authenticatable implements JWTSubject
         'profileSlug',
         'avatar',
         'profileImage',
+        'coverImage',
         'status',
+        'location',
+        'bio',
     ];
 
     /**

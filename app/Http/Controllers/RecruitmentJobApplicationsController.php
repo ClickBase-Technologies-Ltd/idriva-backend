@@ -10,7 +10,7 @@ class RecruitmentJobApplicationsController extends Controller
 {
     public function index()
     {
-        $applications = RecruitmentJobApplications::with('job', 'job.company', 'applicant')->get();
+        $applications = RecruitmentJobApplications::with('job', 'job.company', 'applicant', 'education', 'workExperience', 'driversLicense', 'skills')->get();
         return response()->json($applications);
        
     }
@@ -97,5 +97,19 @@ class RecruitmentJobApplicationsController extends Controller
         return response()->json($application);
     }
 
+
+    public function getJobApplications($jobId)
+    {
+        $job = RecruitmentJobs::find($jobId);
+        if (!$job) {
+            return response()->json(['message' => 'Job not found'], 404);
+        }
+
+        $applications = RecruitmentJobApplications::with('applicant')
+            ->where('jobId', $jobId)
+            ->get();
+
+        return response()->json($applications);
+    }
     
 }

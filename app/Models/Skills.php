@@ -8,7 +8,7 @@ class Skills extends Model
 {
     protected $table = 'skills';
 
-    protected $primaryKey = 'educationId';
+    protected $primaryKey = 'skillId';
 
     protected $fillable = [
         'userId',
@@ -22,13 +22,5 @@ class Skills extends Model
         return $this->belongsTo(User::class, 'userId');
     }
 
-    public function likes()
-    {
-        return $this->hasMany(PostLikes::class, 'postId');
-    }
-
-    public function shares()
-    {
-        return $this->hasMany(PostShares::class, 'postId');
-    }
+ 
 }

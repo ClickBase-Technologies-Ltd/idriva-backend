@@ -60,17 +60,20 @@ class JobController extends Controller
     }
 
 
-    public function myJobs()
-    {
-        $job = RecruitmentJobs::
-            where('postedBy', auth()->id())
-            ->with('company')
-            ->first();
-        if (!$job) {
-            return response()->json(['message' => 'No jobs found'], 404);
-        }
-        return response()->json($job);
+   public function myJobs()
+{
+    $jobs = RecruitmentJobs::where('postedBy', auth()->id())
+        ->with('company')
+        ->withCount('applications')  // <-- important
+        ->get();
+
+    if ($jobs->isEmpty()) {
+        return response()->json(['message' => 'No jobs found'], 404);
     }
+
+    return response()->json($jobs);
+}
+
 
     public function update(Request $request, $id)
     {

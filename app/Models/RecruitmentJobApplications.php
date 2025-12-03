@@ -30,5 +30,24 @@ public function applicant()
         return $this->belongsTo(User::class, 'applicantId', 'id');
     }
 
+    public function education()
+    {
+        return $this->hasMany(Education::class, 'userId', 'applicantId');
+    }
+
+    public function workExperience()
+    {
+        return $this->hasMany(WorkExperience::class, 'userId', 'applicantId');
+    }
+
+    public function driversLicense()
+    {
+        return $this->hasMany(DriversLicense::class, 'userId', 'applicantId');
+    }
+
+    public function skills(){
+        return $this->hasMany(Skills::class, 'userId', 'applicantId');
+    }
+
    
 }

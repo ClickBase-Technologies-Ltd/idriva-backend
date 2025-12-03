@@ -8,7 +8,7 @@ class WorkExperience extends Model
 {
     protected $table = 'work_experience';
 
-    protected $primaryKey = 'experienceId';
+    protected $primaryKey = 'workExperienceId';
 
     protected $fillable = [
         'userId',
