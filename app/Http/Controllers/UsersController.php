@@ -21,6 +21,7 @@ use App\Models\Education;
 use App\Models\Skills;
 use App\Models\WorkExperience;
 use Illuminate\Queue\Worker;
+use Illuminate\Support\Facades\Auth;
 
 class UsersController extends Controller
 {
@@ -473,5 +474,22 @@ public function deleteUserDriversLicense(Request $request, $id)
 
         return response()->json(['message' => 'No image uploaded'], 400);
     }
+
+
+    public function currentUser(Request $request)
+{
+    $user = Auth::user();
+
+    return response()->json([
+        'user' => [
+            'id' => $user->id,
+            'full_name' => $user->firstName . ' ' . $user->lastName,
+            'role' => $user->role,
+            'phoneNumber' => $user->phoneNumber,
+            'email' => $user->email,
+        ]
+    ]);
+}
+
 
 }

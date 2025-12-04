@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Follow;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -352,4 +353,82 @@ class SuggestedFollowersController extends Controller
             ], 500);
         }
     }
+
+
+
+    public function getFollowers(Request $request)
+{
+    $user = Auth::user();
+
+    // Get all users who follow the current user
+    $followers = Follow::where('followingId', $user->id)
+        ->pluck('followerId');
+
+    $users = User::whereIn('id', $followers)
+        ->select('id', 'firstName', 'lastName', 'otherNames', 'profileImage', 'bio',
+                 'location', 'followersCount', 'followingCount')
+        ->get();
+
+    // Check if current user follows each follower
+    $isFollowingIds = Follow::where('followerId', $user->id)
+        ->pluck('followingId')
+        ->toArray();
+
+    $formatted = $users->map(function ($u) use ($isFollowingIds) {
+        return [
+            'id' => $u->id,
+            'firstName' => $u->firstName,
+            'lastName' => $u->lastName,
+            'otherNames' => $u->otherNames,
+            'profileImage' => $u->profileImage,
+            'bio' => $u->bio,
+            'location' => $u->location,
+            'followersCount' => $u->followersCount,
+            'followingCount' => $u->followingCount,
+            'is_following' => in_array($u->id, $isFollowingIds)
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => $formatted
+    ]);
+}
+
+
+public function getFollowing(Request $request)
+{
+    $user = Auth::user();
+
+    // IDs of people user follows
+    $following = Follow::where('followerId', $user->id)
+        ->pluck('followingId');
+
+    $users = User::whereIn('id', $following)
+        ->select('id', 'firstName', 'lastName', 'otherNames', 'profileImage', 'bio',
+                 'location', 'followersCount', 'followingCount')
+        ->get();
+
+    $formatted = $users->map(function ($u) {
+        return [
+            'id' => $u->id,
+            'firstName' => $u->firstName,
+            'lastName' => $u->lastName,
+            'otherNames' => $u->otherNames,
+            'profileImage' => $u->profileImage,
+            'bio' => $u->bio,
+            'location' => $u->location,
+            'followersCount' => $u->followersCount,
+            'followingCount' => $u->followingCount,
+            'is_following' => true // Since this is "following" page
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => $formatted
+    ]);
+}
+
+
 }

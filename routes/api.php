@@ -72,11 +72,13 @@ Route::middleware(['auth.jwt'])->group(function () {
 
         return response()->json([
             'user' => [
-                'id' => (string) $user->id,
+                // 'id' => (string) $user->id,
+                'id' => $user->id,
                 'full_name' => trim($user->firstName . ' ' . $user->lastName . ' ' . ($user->otherNames ?? '')),
                 'role' => $user->user_role->roleName ?? null,
                 'phoneNumber' => $user->phoneNumber,
                 'email' => $user->email,
+                
             ],
             'profile' => [
                 'profileImage' => $user->profileImage ?? '/avatar.png',
@@ -215,12 +217,19 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::get('/users/suggested', [FollowController::class, 'suggestedUsers']);
 
 
-    Route::get('/suggested-followers', [SuggestedFollowersController::class, 'index']);
+    // Route::get('/suggested-followers', [SuggestedFollowersController::class, 'index']);
     
     // Alternative with Laravel paginator
-    Route::get('/suggested-followers-paginator', [SuggestedFollowersController::class, 'indexWithPaginator']);
+    Route::get('/suggested-followers-paginator', [FollowController::class, 'suggestedUsersPaginated']);
     
     // Advanced algorithm
     Route::get('/suggested-followers-advanced', [SuggestedFollowersController::class, 'advancedSuggestions']);
+
+    Route::post('/follow', [FollowController::class, 'toggleFollow']);
+    
+    // Get followers
+    // Route::get('/user', [UsersController::class, 'currentUser']);
+    Route::get('/suggested-followers', [SuggestedFollowersController::class, 'getFollowers']);
+    Route::get('/following', [SuggestedFollowersController::class, 'getFollowing']);
 
 });

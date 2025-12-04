@@ -517,4 +517,113 @@ class FollowController extends Controller
             ], 500);
         }
     }
+
+    public function suggestedUsersPaginated(Request $request)
+{
+    try {
+        $currentUser = Auth::user();
+
+        // Pagination parameters
+        $perPage = $request->get('per_page', 10); // default 10
+        $page = $request->get('page', 1);
+
+        // Get IDs the user already follows
+        $followingIds = Follow::where('followerId', $currentUser->id)
+            ->pluck('followingId')
+            ->toArray();
+
+        // Exclude the current user too
+        $followingIds[] = $currentUser->id;
+
+        // Query users NOT followed by current user
+        $suggestedQuery = User::whereNotIn('id', $followingIds)
+            ->inRandomOrder()
+            ->select('id', 'firstName', 'lastName', 'otherNames', 'avatar', 'profileImage', 'bio', 'location', 'followersCount', 'followingCount');
+
+        // Apply pagination
+        $suggestedUsers = $suggestedQuery->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'success' => true,
+            'data' => $suggestedUsers
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Suggested users error: ' . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load suggested users',
+            'error' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
+
+
+public function toggleFollow(Request $request)
+    {
+        $request->validate([
+            'follow_user_id' => 'required|exists:users,id'
+        ]);
+
+        try {
+            $user = auth()->user();
+            $targetUser = User::findOrFail($request->follow_user_id);
+
+            if ($user->id == $targetUser->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot follow yourself'
+                ], 400);
+            }
+
+            $isFollowing = $user->isFollowing($targetUser->id);
+
+            DB::beginTransaction();
+
+            if ($isFollowing) {
+                // Unfollow
+                $user->unfollow($targetUser->id);
+                $message = 'Unfollowed successfully';
+            } else {
+                // Follow
+                $user->follow($targetUser->id);
+                $message = 'Followed successfully';
+            }
+
+            // Refresh user data
+            $user->refresh();
+            $targetUser->refresh();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'is_following' => !$isFollowing,
+                    'followers_count' => $targetUser->followers_count,
+                    'following_count' => $user->following_count,
+                    'target_user' => [
+                        'id' => $targetUser->id,
+                        'followers_count' => $targetUser->followers_count
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Follow error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing your request'
+            ], 500);
+        }
+    }
+
+    
+
+
 }
