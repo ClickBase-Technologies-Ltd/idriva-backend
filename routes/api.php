@@ -14,6 +14,7 @@ use App\Http\Controllers\UsersController;
 use App\Http\Controllers\MinistryController;
 use App\Http\Controllers\AgentsController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\SuggestedFollowersController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ProductRequestController;
@@ -211,4 +212,15 @@ Route::middleware(['auth.jwt'])->group(function () {
     
     // Search followers/following
     Route::get('/users/{userId}/follow-search', [FollowController::class, 'searchFollowers']);
+    Route::get('/users/suggested', [FollowController::class, 'suggestedUsers']);
+
+
+    Route::get('/suggested-followers', [SuggestedFollowersController::class, 'index']);
+    
+    // Alternative with Laravel paginator
+    Route::get('/suggested-followers-paginator', [SuggestedFollowersController::class, 'indexWithPaginator']);
+    
+    // Advanced algorithm
+    Route::get('/suggested-followers-advanced', [SuggestedFollowersController::class, 'advancedSuggestions']);
+
 });

@@ -264,6 +264,38 @@ public function removeFollower(User $user): bool
     return $deleted > 0;
 }
 
+
+ public function followers()
+    {
+        return $this->belongsToMany(User::class, 'user_followers', 'following_id', 'follower_id')
+            ->withTimestamps();
+    }
+    
+    // Relationship for followings (people this user follows)
+    public function followings()
+    {
+        return $this->belongsToMany(User::class, 'user_followers', 'follower_id', 'following_id')
+            ->withTimestamps();
+    }
+    
+    // Profile relationship
+    public function profile()
+    {
+        return $this->hasOne(Profile::class);
+    }
+    
+    // Helper method to check if following another user
+    // public function isFollowing(User $user): bool
+    // {
+    //     return $this->followings()->where('following_id', $user->id)->exists();
+    // }
+    
+    // // Full name accessor
+    // public function getFullNameAttribute(): string
+    // {
+    //     return trim($this->first_name . ' ' . $this->last_name . ' ' . ($this->other_names ?? ''));
+    // }
+
 /**
  * Check if user is online
  */

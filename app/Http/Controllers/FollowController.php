@@ -42,14 +42,14 @@ class FollowController extends Controller
             
             // Create follow relationship
             $follow = Follow::create([
-                'follower_id' => $currentUser->id,
-                'following_id' => $userId,
-                'followed_at' => now()
+                'followerId' => $currentUser->id,
+                'followingId' => $userId,
+                'followedAt' => now()
             ]);
             
             // Update counters
-            $currentUser->increment('following_count');
-            $userToFollow->increment('followers_count');
+            $currentUser->increment('followingCount');
+            $userToFollow->increment('followersCount');
             
             DB::commit();
             
@@ -59,8 +59,8 @@ class FollowController extends Controller
                 'data' => [
                     'follow' => $follow,
                     'stats' => [
-                        'following_count' => $currentUser->fresh()->following_count,
-                        'followers_count' => $userToFollow->fresh()->followers_count
+                        'following_count' => $currentUser->fresh()->followingCount,
+                        'followers_count' => $userToFollow->fresh()->followersCount
                     ]
                 ]
             ], 201);
@@ -477,6 +477,42 @@ class FollowController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to search',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+
+    public function suggestedUsers(Request $request)
+    {
+        try {
+            $currentUser = Auth::user();
+
+            // Get IDs of users the current user is already following
+            $followingIds = Follow::where('followerId', $currentUser->id)
+                ->pluck('followingId')
+                ->toArray();
+
+            // Include current user's ID to exclude from suggestions
+            $followingIds[] = $currentUser->id;
+
+            // Fetch users not followed by the current user
+            $suggestedUsers = User::whereNotIn('id', $followingIds)
+                ->inRandomOrder()
+                ->limit(10)
+                ->get(['id', 'firstName', 'lastName', 'otherNames', 'avatar', 'profileImage', 'bio', 'location', 'followersCount', 'followingCount']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $suggestedUsers
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Suggested users error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load suggested users',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
