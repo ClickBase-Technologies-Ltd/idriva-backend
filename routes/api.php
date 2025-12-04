@@ -14,6 +14,7 @@ use App\Http\Controllers\UsersController;
 use App\Http\Controllers\MinistryController;
 use App\Http\Controllers\AgentsController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ProductRequestController;
 use App\Http\Controllers\TransactionsController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\CommodityController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\FollowController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\PostController;
@@ -79,8 +81,8 @@ Route::middleware(['auth.jwt'])->group(function () {
                 'profileImage' => $user->profileImage ?? '/avatar.png',
                 'coverImage' => $user->coverImage ?? '/cover_photo.jpg',
             ],
-            'followersCount' => 42,
-            'followingCount' => 128,
+            'followersCount' => $user->followersCount,
+            'followingCount' => $user->followingCount,
             'suggestedUsers' => [
                 [
                     'id' => '2',
@@ -181,4 +183,32 @@ Route::middleware(['auth.jwt'])->group(function () {
 
     // Fetch a single lesson for a course
     Route::get('learning/{courseId}/lessons/{lessonId}', [LessonController::class, 'show']);
+
+      // Chat routes
+    Route::prefix('chat')->group(function () {
+        Route::get('/users', [ChatController::class, 'getChatUsers']);
+        Route::get('/messages/{userId}', [ChatController::class, 'getMessages']);
+        Route::post('/send', [ChatController::class, 'sendMessage']);
+        Route::post('/mark-read', [ChatController::class, 'markAsRead']);
+        Route::get('/unread-count', [ChatController::class, 'getUnreadCount']);
+        Route::post('/update-last-seen', [ChatController::class, 'updateLastSeen']);
+    });
+
+
+
+     // Follow routes
+    Route::post('/users/{userId}/follow', [FollowController::class, 'follow']);
+    Route::post('/users/{userId}/unfollow', [FollowController::class, 'unfollow']);
+    Route::delete('/users/{userId}/followers/{followerId}', [FollowController::class, 'removeFollower']);
+    
+    // Get followers/following
+    Route::get('/users/{userId}/followers', [FollowController::class, 'getFollowers']);
+    Route::get('/users/{userId}/following', [FollowController::class, 'getFollowing']);
+    Route::get('/users/{userId}/follow-stats', [FollowController::class, 'getFollowStats']);
+    
+    // Check follow status
+    Route::get('/users/{userId}/follow-status', [FollowController::class, 'getFollowStatus']);
+    
+    // Search followers/following
+    Route::get('/users/{userId}/follow-search', [FollowController::class, 'searchFollowers']);
 });

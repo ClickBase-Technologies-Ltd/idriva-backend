@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Http;
 /**
  * LearningController
  */
-class LearningController extends Controller
+class LessonController extends Controller
 {
     public function index(): JsonResponse
     {
@@ -32,37 +32,37 @@ class LearningController extends Controller
         return response()->json($courses);
     }
 
-    public function show($id): JsonResponse
-    {
-        try {
-            $course = Course::with([
-                'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
-                'modules' => fn($q) => $q->orderBy('position', 'asc'),
-                'instructor'
-            ])->findOrFail($id);
+    // public function show($id): JsonResponse
+    // {
+    //     try {
+    //         $course = Course::with([
+    //             'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
+    //             'modules' => fn($q) => $q->orderBy('position', 'asc'),
+    //             'instructor'
+    //         ])->findOrFail($id);
 
-            // Ensure lessons is always a collection
-            $course->modules = $course->modules->map(
-                fn($module) => tap($module, fn($m) => $m->lessons = $m->lessons ?? collect([]))
-            );
+    //         // Ensure lessons is always a collection
+    //         $course->modules = $course->modules->map(
+    //             fn($module) => tap($module, fn($m) => $m->lessons = $m->lessons ?? collect([]))
+    //         );
 
-            $user = Auth::user();
-            $course->enrolled = $user ? $user->enrolledCourses()->where('course_id', $id)->exists() : false;
+    //         $user = Auth::user();
+    //         $course->enrolled = $user ? $user->enrolledCourses()->where('course_id', $id)->exists() : false;
 
-            return response()->json($course);
-        } catch (\Throwable $e) {
-            \Log::error('LearningController::show error', [
-                'courseId' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+    //         return response()->json($course);
+    //     } catch (\Throwable $e) {
+    //         \Log::error('LearningController::show error', [
+    //             'courseId' => $id,
+    //             'error' => $e->getMessage(),
+    //             'trace' => $e->getTraceAsString(),
+    //         ]);
 
-            return response()->json([
-                'message' => 'Failed to load course.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'message' => 'Failed to load course.',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     public function createCheckoutSession(Request $request, $id): JsonResponse
     {
@@ -214,46 +214,36 @@ class LearningController extends Controller
             ], 500);
         }
     }
-}
 
-/**
- * LessonController
- */
-class LessonController extends Controller
-{
-    /**
-     * Show a lesson by course and lesson ID.
-     *
-     * GET /api/learning/{course}/lessons/{lesson}
-     */
-    public function show($courseId, $lessonId): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        \Log::info('LessonController::show called', ['courseId' => $courseId, 'lessonId' => $lessonId]);
+        \Log::info('LessonController::show called', ['courseId' => $request->courseId, 'lessonId' => $request->lessonId]);
 
         try {
             // Load lesson with module relationship
-            $lesson = Lesson::with(['module:id,course_id'])->find($lessonId);
+            $lesson = Lesson::with(['module:id,course_id'])->where('id', $request->lessonId)->first();
+            // $lesson = Lesson::with(['module:id,course_id'])->find($lessonId);
 
             if (!$lesson) {
-                \Log::warning('Lesson not found', ['lessonId' => $lessonId]);
+                \Log::warning('Lesson not found', ['lessonId' => $request->lessonId]);
                 return response()->json(['message' => 'Lesson not found.'], 404);
             }
 
             if (!$lesson->module) {
-                \Log::warning('Lesson has no module', ['lessonId' => $lessonId]);
+                \Log::warning('Lesson has no module', ['lessonId' => $request->lessonId]);
                 return response()->json(['message' => 'Lesson is not assigned to any module.'], 404);
             }
 
-            if ((int)$lesson->module->course_id !== (int)$courseId) {
+            if ((int)$lesson->module->course_id !== (int)$request->courseId) {
                 \Log::warning('Lesson does not belong to course', [
-                    'lessonId' => $lessonId,
+                    'lessonId' => $request->lessonId,
                     'moduleCourseId' => $lesson->module->course_id,
-                    'requestedCourseId' => $courseId
+                    'requestedCourseId' => $request->courseId
                 ]);
                 return response()->json(['message' => 'Lesson not found for this course.'], 404);
             }
 
-            \Log::info('Lesson fetched successfully', ['lessonId' => $lessonId]);
+            \Log::info('Lesson fetched successfully', ['lessonId' => $request->lessonId]);
 
             return response()->json([
                 'id' => $lesson->id,
@@ -271,8 +261,8 @@ class LessonController extends Controller
 
         } catch (\Throwable $e) {
             \Log::error('LessonController::show exception', [
-                'courseId' => $courseId,
-                'lessonId' => $lessonId,
+                'courseId' => $request->courseId,
+                'lessonId' => $request->lessonId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

@@ -44,40 +44,48 @@ class LearningController extends Controller
      * GET /learning/{id}
      * Fetch single course with modules, lessons, and enrollment info.
      */
-    public function show($id): JsonResponse
-    {
-        try {
-            $course = Course::with([
-                'modules' => fn($q) => $q->orderBy('position', 'asc'),
-                'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
-                'instructor'
-            ])->findOrFail($id);
+    // public function show(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $course = Course::with([
+    //             'modules' => fn($q) => $q->orderBy('position', 'asc'),
+    //             'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
+    //             'instructor'
+    //         ])->findOrFail($request->courseId);
 
-            $course->modules = $course->modules->map(
-                fn($module) => tap($module, fn($m) => $m->lessons = $m->lessons ?? collect([]))
-            );
+    //         $course->modules = $course->modules->map(
+    //             fn($module) => tap($module, fn($m) => $m->lessons = $m->lessons ?? collect([]))
+    //         );
 
-            $user = Auth::user();
-            $course->enrolled = $user
-                ? $user->enrolledCourses()
-                       ->where('course_id', $id)
-                       ->whereIn('status', ['active', 'completed'])
-                       ->exists()
-                : false;
+    //         $user = Auth::user();
+    //         $course->enrolled = $user
+    //             ? $user->enrolledCourses()
+    //                    ->where('course_id', $request->courseId)
+    //                    ->whereIn('status', ['active', 'completed'])
+    //                    ->exists()
+    //             : false;
 
-            return response()->json($course);
-        } catch (\Throwable $e) {
-            \Log::error('LearningController::show error', [
-                'courseId' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+    //         return response()->json($course);
+    //     } catch (\Throwable $e) {
+    //         \Log::error('LearningController::show error', [
+    //             'courseId' => $request->courseId,
+    //             'error' => $e->getMessage(),
+    //             'trace' => $e->getTraceAsString(),
+    //         ]);
 
-            return response()->json([
-                'message' => 'Failed to load course.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+    //         return response()->json([
+    //             'message' => 'Failed to load course.',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
+    public function show(Request $request){
+        $course = Course::with(['modules', 'modules.lessons', 'instructor'])
+            ->where('published', "=", 1)
+            ->where('id', $request->courseId)
+            ->get();
+        return response()->json($course);
     }
 
     /**
