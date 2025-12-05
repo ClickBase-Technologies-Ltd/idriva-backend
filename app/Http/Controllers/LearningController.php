@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-/**
- * LearningController
- */
 class LearningController extends Controller
 {
     /**
@@ -21,31 +18,41 @@ class LearningController extends Controller
      */
     public function index(): JsonResponse
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        $courses = Course::with('instructor')
-            ->withCount('modules')
-            ->where('published', 1)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($course) use ($user) {
-                $course->enrolled = $user
-                    ? $user->enrolledCourses()
-                           ->where('course_id', $course->id)
-                           ->whereIn('status', ['active', 'completed'])
-                           ->exists()
-                    : false;
-                return $course;
-            });
+            $courses = Course::with('instructor')
+                ->withCount('modules')
+                ->where('published', 1)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($course) use ($user) {
+                    $course->enrolled = $user
+                        ? $user->enrolledCourses()
+                               ->where('course_id', $course->id)
+                               ->whereIn('status', ['active', 'completed'])
+                               ->exists()
+                        : false;
+                    return $course;
+                });
 
-        return response()->json($courses);
+            return response()->json($courses);
+        } catch (\Throwable $e) {
+            Log::error('LearningController::index error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to fetch courses.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
      * GET /learning/{id}
      * Fetch single course with modules, lessons, and enrollment info.
-     *
-     * Note: Route is `Route::get('learning/{id}', [LearningController::class, 'show']);`
      */
     public function show(Request $request, $id): JsonResponse
     {
@@ -56,7 +63,6 @@ class LearningController extends Controller
                 'instructor'
             ])->where('published', 1)->findOrFail($id);
 
-            // Ensure lessons arrays exist and are collections (consistent shape)
             $course->modules = $course->modules->map(function ($module) {
                 $module->lessons = $module->lessons ?? collect([]);
                 return $module;
@@ -91,23 +97,21 @@ class LearningController extends Controller
      */
     public function createCheckoutSession(Request $request, $id): JsonResponse
     {
-        $user = Auth::user();
-        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
-
-        $course = Course::findOrFail($id);
-
-        if (!$course->price || $course->price <= 0) {
-            return response()->json(['message' => 'Course is free. No payment needed.']);
-        }
-
-        $paystackSecret = env('PAYSTACK_SECRET_KEY');
-        if (!$paystackSecret) return response()->json(['message' => 'Payment gateway not configured.'], 500);
-
-        // Callback is the frontend page that will read reference and call the verify endpoint.
-        // Make sure FRONTEND_URL is set correctly (e.g. https://yourapp.com)
-        $callbackUrl = rtrim(env('FRONTEND_URL'), '/') . "/dashboard/learning/enroll?courseId={$id}";
-
         try {
+            $user = Auth::user();
+            if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+
+            $course = Course::findOrFail($id);
+
+            if (!$course->price || $course->price <= 0) {
+                return response()->json(['message' => 'Course is free. No payment needed.'], 400);
+            }
+
+            $paystackSecret = env('PAYSTACK_SECRET_KEY');
+            if (!$paystackSecret) return response()->json(['message' => 'Payment gateway not configured.'], 500);
+
+            $callbackUrl = rtrim(env('FRONTEND_URL'), '/') . "/dashboard/learning/enroll?courseId={$id}";
+
             $response = Http::withToken($paystackSecret)
                 ->post('https://api.paystack.co/transaction/initialize', [
                     'email' => $user->email,
@@ -123,8 +127,9 @@ class LearningController extends Controller
 
             if ($response->successful()) {
                 $data = $response->json();
-                // return the authorization url inside data (frontend checks both fields)
-                return response()->json(['authorization_url' => $data['data']['authorization_url'] ?? ($data['data']['url'] ?? null)]);
+                return response()->json([
+                    'authorization_url' => $data['data']['authorization_url'] ?? ($data['data']['url'] ?? null)
+                ]);
             }
 
             return response()->json([
@@ -149,48 +154,55 @@ class LearningController extends Controller
      */
     public function enroll(Request $request, $id): JsonResponse
     {
-        $user = Auth::user();
-        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+        try {
+            $user = Auth::user();
+            if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $course = Course::findOrFail($id);
+            $course = Course::findOrFail($id);
 
-        $alreadyEnrolled = $user->enrolledCourses()
-            ->where('course_id', $course->id)
-            ->whereIn('status', ['active', 'completed'])
-            ->exists();
+            $alreadyEnrolled = $user->enrolledCourses()
+                ->where('course_id', $course->id)
+                ->whereIn('status', ['active', 'completed'])
+                ->exists();
 
-        if ($alreadyEnrolled) {
-            return response()->json(['enrolled' => true, 'message' => 'Already enrolled']);
-        }
+            if ($alreadyEnrolled) {
+                return response()->json(['enrolled' => true, 'message' => 'Already enrolled']);
+            }
 
-        if (!$course->price || $course->price <= 0) {
-            $user->enrolledCourses()->create([
-                'course_id' => $course->id,
-                'status' => 'active',
-                'started_at' => now(),
+            if (!$course->price || $course->price <= 0) {
+                $user->enrolledCourses()->create([
+                    'course_id' => $course->id,
+                    'status' => 'active',
+                    'started_at' => now(),
+                ]);
+
+                return response()->json(['enrolled' => true, 'message' => 'Successfully enrolled']);
+            }
+
+            return response()->json([
+                'enrolled' => false,
+                'message' => 'Course requires payment. Complete checkout first.',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('LearningController::enroll error', [
+                'courseId' => $id,
+                'error' => $e->getMessage(),
             ]);
 
-            return response()->json(['enrolled' => true, 'message' => 'Successfully enrolled']);
+            return response()->json([
+                'enrolled' => false,
+                'message' => 'Enrollment failed: ' . $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'enrolled' => false,
-            'message' => 'Course requires payment. Complete checkout first.',
-        ]);
     }
 
     /**
      * GET /learning/{id}/payment-verify
      * Verify Paystack payment and enroll user if successful.
-     *
-     * Frontend flow: Paystack redirects to FRONTEND_URL with ?reference=XXXX,
-     * frontend reads the reference and calls this backend endpoint:
-     * GET /api/learning/{id}/payment-verify?reference=XXXX
      */
     public function paymentVerify(Request $request, $id): JsonResponse
     {
         $reference = $request->query('reference') ?? $request->query('trxref');
-
         if (!$reference) return response()->json(['enrolled' => false, 'message' => 'Payment reference missing.'], 400);
 
         $paystackSecret = env('PAYSTACK_SECRET_KEY');
@@ -205,53 +217,51 @@ class LearningController extends Controller
             }
 
             $data = $response->json();
+            if (($data['data']['status'] ?? null) !== 'success') {
+                return response()->json(['enrolled' => false, 'message' => 'Payment was not successful.'], 400);
+            }
 
-            if (($data['data']['status'] ?? null) === 'success') {
-                $userId = $data['data']['metadata']['user_id'] ?? null;
-                $courseId = $data['data']['metadata']['course_id'] ?? $id;
+            $userId = $data['data']['metadata']['user_id'] ?? null;
+            $courseId = $data['data']['metadata']['course_id'] ?? $id;
 
-                if (!$userId) return response()->json(['enrolled' => false, 'message' => 'User not resolved from payment metadata.'], 400);
+            if (!$userId) return response()->json(['enrolled' => false, 'message' => 'User not resolved from payment metadata.'], 400);
 
-                $user = User::find($userId);
-                if (!$user) return response()->json(['enrolled' => false, 'message' => 'User not found.'], 404);
+            $user = User::find($userId);
+            if (!$user) return response()->json(['enrolled' => false, 'message' => 'User not found.'], 404);
 
-                $course = Course::with([
-                    'modules' => fn($q) => $q->orderBy('position', 'asc'),
-                    'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
-                ])->findOrFail($courseId);
+            $course = Course::with([
+                'modules' => fn($q) => $q->orderBy('position', 'asc'),
+                'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
+            ])->findOrFail($courseId);
 
-                $alreadyEnrolled = $user->enrolledCourses()
-                    ->where('course_id', $course->id)
-                    ->whereIn('status', ['active', 'completed'])
-                    ->exists();
+            $alreadyEnrolled = $user->enrolledCourses()
+                ->where('course_id', $course->id)
+                ->whereIn('status', ['active', 'completed'])
+                ->exists();
 
-                if (!$alreadyEnrolled) {
-                    $user->enrolledCourses()->create([
-                        'course_id' => $course->id,
-                        'status' => 'active',
-                        'started_at' => now(),
-                        'payment_reference' => $reference,
-                    ]);
-                }
-
-                $firstLessonId = null;
-                foreach ($course->modules as $module) {
-                    if ($module->lessons && $module->lessons->count() > 0) {
-                        $firstLessonId = $module->lessons->first()->id;
-                        break;
-                    }
-                }
-
-                return response()->json([
-                    'enrolled' => true,
-                    'message' => 'Payment successful! Redirecting to your course.',
+            if (!$alreadyEnrolled) {
+                $user->enrolledCourses()->create([
                     'course_id' => $course->id,
-                    'first_lesson_id' => $firstLessonId,
+                    'status' => 'active',
+                    'started_at' => now(),
+                    'payment_reference' => $reference,
                 ]);
             }
 
-            return response()->json(['enrolled' => false, 'message' => 'Payment was not successful.'], 400);
+            $firstLessonId = null;
+            foreach ($course->modules as $module) {
+                if ($module->lessons && $module->lessons->count() > 0) {
+                    $firstLessonId = $module->lessons->first()->id;
+                    break;
+                }
+            }
 
+            return response()->json([
+                'enrolled' => true,
+                'message' => 'Payment successful! Redirecting to your course.',
+                'course_id' => $course->id,
+                'first_lesson_id' => $firstLessonId,
+            ]);
         } catch (\Throwable $e) {
             Log::error('LearningController::paymentVerify error', [
                 'courseId' => $id,
@@ -267,4 +277,3 @@ class LearningController extends Controller
         }
     }
 }
-
