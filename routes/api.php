@@ -14,6 +14,7 @@ use App\Http\Controllers\UsersController;
 use App\Http\Controllers\MinistryController;
 use App\Http\Controllers\AgentsController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SuggestedFollowersController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\StockController;
@@ -232,4 +233,12 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::get('/suggested-followers', [SuggestedFollowersController::class, 'getFollowers']);
     Route::get('/following', [SuggestedFollowersController::class, 'getFollowing']);
 
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/stats', [NotificationController::class, 'stats']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+    Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll']);
 });

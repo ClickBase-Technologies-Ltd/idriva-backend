@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\RecruitmentJobs;
+use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Storage;
 
 class JobController extends Controller
@@ -44,6 +46,14 @@ class JobController extends Controller
         // Create the company
         $validated['postedBy'] = auth()->id();
         $job = RecruitmentJobs::create($validated);
+
+        $relevantUserIds = User::where('role', 'Driver')
+        ->where('is_active', true)
+        ->pluck('id')
+        ->toArray();
+    
+    // Send notifications
+    NotificationService::notifyNewJobPost($job, $relevantUserIds);
 
         // Return a response, typically JSON
         return response()->json($job, 201); // HTTP status code 201: Created

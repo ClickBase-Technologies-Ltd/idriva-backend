@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RecruitmentJobApplications;
 use App\Models\RecruitmentJobs;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 class RecruitmentJobApplicationsController extends Controller
@@ -32,6 +33,11 @@ class RecruitmentJobApplicationsController extends Controller
         $validated['applicantId'] = auth()->id();
         $validated['applicationDate'] = now();
         $applications = RecruitmentJobApplications::create($validated);
+
+        $job = RecruitmentJobs::findOrFail($validated['jobId']);
+         if ($applications->applicantId !== auth()->id()) {
+        NotificationService::notifyJobApplication(auth()->user(), $job, $applications);
+    }
     
         // Return a response, typically JSON
         return response()->json($applications, 201); // HTTP status code 201: Created

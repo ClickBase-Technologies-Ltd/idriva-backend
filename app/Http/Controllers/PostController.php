@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 use App\Models\Posts;
 use App\Models\PostShares;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -112,11 +113,15 @@ class PostController extends Controller
 
     public function likePost($id)
     {
+         $user = auth()->user();
         // Logic to like a post
         $like = PostLikes::create([
             'postId' => $id,
             'userId' => auth()->id(),
         ]);
+        if ($like->userId !== $user->id) {
+        NotificationService::notifyPostLike($user, $like->post);
+    }
     }
 
     public function unlikePost($id)
@@ -155,6 +160,7 @@ class PostController extends Controller
 
     public function commentPost(Request $request, $id)
     {
+        $user = auth()->user();
         // Logic to comment on a post
         $request->validate([
             'comment' => 'required|string|max:1000',
@@ -165,7 +171,11 @@ class PostController extends Controller
             'userId' => auth()->id(),
             'comment' => $request->comment,
         ]);
+        $post = Posts::findOrFail($id);
 
+         if ($comment->userId !== $user->id) {
+        NotificationService::notifyPostComment($user, $post, $comment);
+    }
         return response()->json($comment, 201);
     }
 
