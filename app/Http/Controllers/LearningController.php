@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * LearningController
@@ -43,49 +44,45 @@ class LearningController extends Controller
     /**
      * GET /learning/{id}
      * Fetch single course with modules, lessons, and enrollment info.
+     *
+     * Note: Route is `Route::get('learning/{id}', [LearningController::class, 'show']);`
      */
-    // public function show(Request $request): JsonResponse
-    // {
-    //     try {
-    //         $course = Course::with([
-    //             'modules' => fn($q) => $q->orderBy('position', 'asc'),
-    //             'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
-    //             'instructor'
-    //         ])->findOrFail($request->courseId);
+    public function show(Request $request, $id): JsonResponse
+    {
+        try {
+            $course = Course::with([
+                'modules' => fn($q) => $q->orderBy('position', 'asc'),
+                'modules.lessons' => fn($q) => $q->orderBy('position', 'asc'),
+                'instructor'
+            ])->where('published', 1)->findOrFail($id);
 
-    //         $course->modules = $course->modules->map(
-    //             fn($module) => tap($module, fn($m) => $m->lessons = $m->lessons ?? collect([]))
-    //         );
+            // Ensure lessons arrays exist and are collections (consistent shape)
+            $course->modules = $course->modules->map(function ($module) {
+                $module->lessons = $module->lessons ?? collect([]);
+                return $module;
+            });
 
-    //         $user = Auth::user();
-    //         $course->enrolled = $user
-    //             ? $user->enrolledCourses()
-    //                    ->where('course_id', $request->courseId)
-    //                    ->whereIn('status', ['active', 'completed'])
-    //                    ->exists()
-    //             : false;
+            $user = Auth::user();
+            $course->enrolled = $user
+                ? $user->enrolledCourses()
+                       ->where('course_id', $course->id)
+                       ->whereIn('status', ['active', 'completed'])
+                       ->exists()
+                : false;
 
-    //         return response()->json($course);
-    //     } catch (\Throwable $e) {
-    //         \Log::error('LearningController::show error', [
-    //             'courseId' => $request->courseId,
-    //             'error' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString(),
-    //         ]);
+            return response()->json($course);
+        } catch (\Throwable $e) {
+            Log::error('LearningController::show error', [
+                'courseId' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-    //         return response()->json([
-    //             'message' => 'Failed to load course.',
-    //             'error' => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
-    public function show(Request $request){
-        $course = Course::with(['modules', 'modules.lessons', 'instructor'])
-            ->where('published', "=", 1)
-            ->where('id', $request->courseId)
-            ->get();
-        return response()->json($course);
+            return response()->json([
+                'message' => 'Failed to load course.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -106,7 +103,9 @@ class LearningController extends Controller
         $paystackSecret = env('PAYSTACK_SECRET_KEY');
         if (!$paystackSecret) return response()->json(['message' => 'Payment gateway not configured.'], 500);
 
-        $callbackUrl = rtrim(env('FRONTEND_URL'), '/') . "/dashboard/learning/{$id}/payment-verify";
+        // Callback is the frontend page that will read reference and call the verify endpoint.
+        // Make sure FRONTEND_URL is set correctly (e.g. https://yourapp.com)
+        $callbackUrl = rtrim(env('FRONTEND_URL'), '/') . "/dashboard/learning/enroll?courseId={$id}";
 
         try {
             $response = Http::withToken($paystackSecret)
@@ -124,7 +123,8 @@ class LearningController extends Controller
 
             if ($response->successful()) {
                 $data = $response->json();
-                return response()->json(['authorization_url' => $data['data']['authorization_url']]);
+                // return the authorization url inside data (frontend checks both fields)
+                return response()->json(['authorization_url' => $data['data']['authorization_url'] ?? ($data['data']['url'] ?? null)]);
             }
 
             return response()->json([
@@ -132,7 +132,7 @@ class LearningController extends Controller
                 'error' => $response->body(),
             ], 500);
         } catch (\Throwable $e) {
-            \Log::error('LearningController::createCheckoutSession error', [
+            Log::error('LearningController::createCheckoutSession error', [
                 'courseId' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -182,6 +182,10 @@ class LearningController extends Controller
     /**
      * GET /learning/{id}/payment-verify
      * Verify Paystack payment and enroll user if successful.
+     *
+     * Frontend flow: Paystack redirects to FRONTEND_URL with ?reference=XXXX,
+     * frontend reads the reference and calls this backend endpoint:
+     * GET /api/learning/{id}/payment-verify?reference=XXXX
      */
     public function paymentVerify(Request $request, $id): JsonResponse
     {
@@ -249,7 +253,7 @@ class LearningController extends Controller
             return response()->json(['enrolled' => false, 'message' => 'Payment was not successful.'], 400);
 
         } catch (\Throwable $e) {
-            \Log::error('LearningController::paymentVerify error', [
+            Log::error('LearningController::paymentVerify error', [
                 'courseId' => $id,
                 'reference' => $reference,
                 'error' => $e->getMessage(),
@@ -263,3 +267,4 @@ class LearningController extends Controller
         }
     }
 }
+
