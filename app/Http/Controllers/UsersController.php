@@ -430,50 +430,62 @@ public function deleteUserDriversLicense(Request $request, $id)
         }
 
         // Handle file upload
-        if ($request->hasFile('profileImage')) {
-            $image = $request->file('profileImage');
-            $imageName = time() . '_' . $user->id . '.' . $image->getClientOriginalExtension();
-            $image->move(public_path('profile-images'), $imageName);
+       if ($request->hasFile('profileImage')) {
+    $image = $request->file('profileImage');
+    $imageName = time() . '_' . $user->id . '.' . $image->getClientOriginalExtension();
 
-            // Update user's profile image path
-            $user->profileImage = 'profile-images/' . $imageName;
-            $user->save();
+    // Store using Laravel storage
+    $path = $image->storeAs('profile-images', $imageName, 'public');
 
-            return response()->json(['message' => 'Profile image uploaded successfully', 'profileImage' => $user->profileImage]);
-        }
+    // Save path
+    $user->profileImage = $path; // this becomes "profile-images/xxxx.jpg"
+    $user->save();
+
+    return response()->json([
+        'message' => 'Profile image uploaded successfully',
+        'profileImage' => $user->profileImage
+    ]);
+}
+
 
         return response()->json(['message' => 'No image uploaded'], 400);
     }
 
 
 
-     public function uploadCoverImage(Request $request)
-    {
-        $request->validate([
-            'coverImage' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // max 2MB
+    public function uploadCoverImage(Request $request)
+{
+    $request->validate([
+        'coverImage' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // max 2MB
+    ]);
+
+    $user = auth()->user();
+
+    if (!$user) {
+        return response()->json(['message' => 'User not authenticated'], 401);
+    }
+
+    if ($request->hasFile('coverImage')) {
+
+        $image = $request->file('coverImage');
+        $imageName = time() . '_' . $user->id . '.' . $image->getClientOriginalExtension();
+
+        // Store using Laravel storage (correct way)
+        $path = $image->storeAs('cover-images', $imageName, 'public');
+
+        // Save the DB path
+        $user->coverImage = $path; // e.g. cover-images/123_1.jpg
+        $user->save();
+
+        return response()->json([
+            'message' => 'Cover image uploaded successfully',
+            'coverImage' => $user->coverImage
         ]);
-
-        $user = auth()->user();
-
-        if (!$user) {
-            return response()->json(['message' => 'User not authenticated'], 401);
-        }
-
-        // Handle file upload
-        if ($request->hasFile('coverImage')) {
-            $image = $request->file('coverImage');
-            $imageName = time() . '_' . $user->id . '.' . $image->getClientOriginalExtension();
-            $image->move(public_path('cover-images'), $imageName);
-
-            // Update user's profile image path
-            $user->coverImage = 'cover-images/' . $imageName;
-            $user->save();
-
-            return response()->json(['message' => 'Cover image uploaded successfully', 'coverImage' => $user->coverImage]);
-        }
-
-        return response()->json(['message' => 'No image uploaded'], 400);
     }
+
+    return response()->json(['message' => 'No image uploaded'], 400);
+}
+
 
 
     public function currentUser(Request $request)
