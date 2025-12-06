@@ -267,14 +267,14 @@ public function removeFollower(User $user): bool
 
  public function followers()
     {
-        return $this->belongsToMany(User::class, 'user_followers', 'following_id', 'follower_id')
+        return $this->belongsToMany(User::class, 'follows', 'followingId', 'followerId')
             ->withTimestamps();
     }
     
     // Relationship for followings (people this user follows)
     public function followings()
     {
-        return $this->belongsToMany(User::class, 'user_followers', 'follower_id', 'following_id')
+        return $this->belongsToMany(User::class, 'follows', 'followerId', 'followingId')
             ->withTimestamps();
     }
     

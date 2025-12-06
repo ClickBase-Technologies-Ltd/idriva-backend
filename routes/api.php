@@ -241,4 +241,6 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll']);
+
+    Route::get('/users/{id}/profile', [UsersController::class, 'profile']);
 });
