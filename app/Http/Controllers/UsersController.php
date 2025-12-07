@@ -505,34 +505,35 @@ public function deleteUserDriversLicense(Request $request, $id)
 
 
 public function profile($id, Request $request)
-    {
-        $authUser = Auth::user(); // logged-in user
-        $user = User::find($authUser->id);
+{
+    $authUser = Auth::user(); // logged-in user
+    $user = User::with('user_role')->find($authUser->id); // Eager load role
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        // Check if authenticated user is following this profile
-        $isFollowing = false;
-        if ($authUser && $authUser->id !== $user->id) {
-            $isFollowing = $authUser->followings()->where('followedId', $user->id)->exists();
-        }
-
+    if (!$user) {
         return response()->json([
-            'id' => $user->id,
-            'firstName' => $user->firstName,
-            'lastName' => $user->lastName,
-            'bio' => $user->bio,
-            'profileImage' => $user->profileImage,
-            'coverImage' => $user->coverImage,
-
-            'followersCount' => $user->followers()->count(),
-            'followingCount' => $user->followings()->count(),
-            'isFollowing' => $isFollowing,
-        ]);
+            'message' => 'User not found'
+        ], 404);
     }
+
+    // Check if authenticated user is following this profile
+    $isFollowing = false;
+    if ($authUser && $authUser->id !== $user->id) {
+        $isFollowing = $authUser->followings()->where('followedId', $user->id)->exists();
+    }
+
+    return response()->json([
+        'id' => $user->id,
+        'firstName' => $user->firstName,
+        'lastName' => $user->lastName,
+        'bio' => $user->bio,
+        'profileImage' => $user->profileImage,
+        'coverImage' => $user->coverImage,
+        'role' => $user->user_role->roleName ?? 'Member', // Get role name with fallback
+        // 'roleId' => $user->role_id, // Also include roleId if needed
+        'followersCount' => $user->followers()->count(),
+        'followingCount' => $user->followings()->count(),
+        'isFollowing' => $isFollowing,
+    ]);
+}
 
 }

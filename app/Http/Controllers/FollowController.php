@@ -344,12 +344,12 @@ class FollowController extends Controller
             $currentUser = Auth::user();
             $targetUser = User::findOrFail($userId);
 
-            $isFollowing = Follow::where('follower_id', $currentUser->id)
-                ->where('following_id', $userId)
+            $isFollowing = Follow::where('followerId', $currentUser->id)
+                ->where('followingId', $userId)
                 ->exists();
 
-            $isFollowedBy = Follow::where('follower_id', $userId)
-                ->where('following_id', $currentUser->id)
+            $isFollowedBy = Follow::where('followerId', $userId)
+                ->where('followingId', $currentUser->id)
                 ->exists();
 
             return response()->json([

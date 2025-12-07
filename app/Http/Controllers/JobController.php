@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RecruitmentJobApplications;
 use Illuminate\Http\Request;
 use App\Models\RecruitmentJobs;
 use App\Models\User;
@@ -10,12 +11,36 @@ use Illuminate\Support\Facades\Storage;
 
 class JobController extends Controller
 {
-    public function index()
-    {
-        $jobs = RecruitmentJobs::with('company')->get();
-        return response()->json($jobs);
+    // public function index()
+    // {
+    //     $jobs = RecruitmentJobs::with('company')->get();
+    //     return response()->json($jobs);
        
-    }
+    // }
+
+public function index()
+{
+    $user = auth()->user();
+
+    $jobs = RecruitmentJobs::with('company')
+        ->get()
+        ->map(function ($job) use ($user) {
+
+            // Check if the user applied
+            $hasApplied = RecruitmentJobApplications::where('applicantId', $user->id)
+                ->where('jobId', $job->jobId)
+                ->exists();
+
+            // Return string instead of boolean
+            $job->applicationStatus = $hasApplied ? "applied" : "not_applied";
+
+            return $job;
+        });
+
+    return response()->json($jobs);
+}
+
+
 
    
 
