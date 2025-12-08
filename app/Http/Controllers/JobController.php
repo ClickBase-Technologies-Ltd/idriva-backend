@@ -160,4 +160,13 @@ public function index()
         $job->delete();
         return response()->json(['message' => 'Job deleted successfully']);
     }
+
+    public function myApplications(){
+        $user = auth()->user();
+        $applications = RecruitmentJobApplications::where('applicantId', $user->id)
+            ->with('job', 'job.company')
+            ->get();
+
+        return response()->json($applications);
+    }
 }

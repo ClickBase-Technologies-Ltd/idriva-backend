@@ -158,7 +158,8 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::post('jobs/{id}/apply', [RecruitmentJobApplicationsController::class, 'store']);
     Route::get('jobs/{id}/application-status', [RecruitmentJobApplicationsController::class, 'checkApplicationStatus']);
     Route::get('jobs/{id}/applications', [RecruitmentJobApplicationsController::class, 'getJobApplications']);
-
+    Route::get('my-applications', [JobController::class, 'myApplications']);
+    
     // Learning endpoints (authenticated)
     Route::get('learning', [LearningController::class, 'index']);
     Route::get('learning/{id}', [LearningController::class, 'show']);
