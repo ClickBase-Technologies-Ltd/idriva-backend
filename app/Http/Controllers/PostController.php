@@ -26,9 +26,9 @@ class PostController extends Controller
     {
         // Validate the request
         $validator = Validator::make($request->all(), [
-            'userId' => 'required|exists:users,id',
-            'title' => 'required|string|max:255',
-            'body' => 'required|string',
+            // 'userId' => 'required|exists:users,id',
+            // 'title' => 'required|string|max:255',
+            // 'body' => 'required|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // 2MB max
             'status' => 'nullable|string|in:draft,published',
         ]);
@@ -42,9 +42,9 @@ class PostController extends Controller
         }
 
         try {
-            $data = $request->only(['userId', 'title', 'body', 'status']);
+            $data = $request->only([ 'title', 'body', 'status']);
             $uploadUrl = null;
-
+            $data['userId'] = auth()->id();
             // Handle image upload
        if ($request->hasFile('image') && $request->file('image')->isValid()) {
     $image = $request->file('image');

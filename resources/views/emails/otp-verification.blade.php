@@ -20,10 +20,11 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <img src="{{ asset('images/idriva-logo.png') }}" alt="iDriva Logo" style="max-width: 150px; display: block; margin: 0 auto 10px;">
+        <!-- <div class="header">
             <h1>iDriva</h1>
             <p>Professional Driver Network</p>
-        </div>
+        </div> -->
 
         <div class="content">
             <h2>Hello {{ $firstName }} {{ $lastName }},</h2>
@@ -42,8 +43,8 @@
         </div>
 
         <div class="footer">
-            <p>&copy; {{ date('Y') }} iDriva. All rights reserved.</p>
-            <p>ClickBase Technologies Ltd.</p>
+            <p>&copy; {{ date('Y') }} iDriva. A product CapitalCore Outsourcing Ltd. All rights reserved.</p>
+            <p>Powered by ClickBase Technologies Ltd.</p>
         </div>
     </div>
 </body>

@@ -32,4 +32,9 @@ class Posts extends Model
     {
         return $this->hasMany(PostShares::class, 'postId');
     }
+
+    public function comments()
+    {
+        return $this->hasMany(PostComments::class, 'postId');
+    }
 }

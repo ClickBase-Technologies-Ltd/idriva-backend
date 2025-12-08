@@ -266,7 +266,6 @@ public function signin(Request $request)
     }
 }
 
-
 public function setupPassword(Request $request)
 {
     try {
@@ -305,11 +304,19 @@ public function setupPassword(Request $request)
             'otp_expires_at' => null,
         ]);
 
+        // Send welcome email
+        try {
+            $this->sendWelcomeEmail($user);
+        } catch (\Exception $e) {
+            Log::error('Welcome email failed to send: ' . $e->getMessage());
+            // Continue execution - don't fail the password setup if email fails
+        }
+
         Log::info('Password setup completed for user:', ['email' => $user->email]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Password set successfully.',
+            'message' => 'Password set successfully. Welcome email sent.',
         ]);
 
     } catch (ValidationException $e) {
@@ -325,6 +332,18 @@ public function setupPassword(Request $request)
             'message' => 'Password setup failed. Please try again.',
         ], 500);
     }
+}
+
+/**
+ * Send welcome email to user
+ */
+private function sendWelcomeEmail(User $user)
+{
+    // Option 1: Using Laravel Mailable
+    Mail::to($user->email)->send(new WelcomeEmail($user));
+    
+    // Option 2: Queue the email (recommended for better performance)
+    // Mail::to($user->email)->queue(new WelcomeEmail($user));
 }
 
     public function changePassword(Request $request)
